@@ -72,6 +72,7 @@ class Message(object):
 
 class Request(Message):
     required_fields = ["id", "method", "jsonrpc", "params"]
+    auto_increment_id = 0
     @staticmethod
     def json_obj_is(json_obj):
         return all([field in json_obj for field in Request.required_fields])
@@ -81,8 +82,10 @@ class Request(Message):
             raise exception.InvalidReqeust("Message is not a request")
         request = Request(json_obj["id"], json_obj["method"], json_obj["params"], json_obj["jsonrpc"])
         return request
-    def __init__(self, id, method, params, jsonrpc = "2.0"):
-        Message.__init__(self, {"jsonrpc": jsonrpc, "id": id, "method": method})
+    def __init__(self, method, params, jsonrpc = "2.0"):
+        id_ = Request.auto_increment_id
+        Request.auto_increment_id += 1
+        Message.__init__(self, {"jsonrpc": jsonrpc, "id": id_, "method": method})
         self.params = params
 
 class Response(Message):

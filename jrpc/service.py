@@ -35,6 +35,8 @@ class rpc_property(property):
         jrpc_object.__init__(self)
 
 class RemoteObject(object):
+    def __init__(self):
+        self.transports = []
     def _get_methods(self):
         return dict([method for method in inspect.getmembers(self) if hasattr(method[1], "jrpc_method") and method[1].jrpc_method])
     def _get_objects(self):
@@ -72,113 +74,11 @@ class RemoteObject(object):
             "interfaces": interfaces
         }
 
-class SocketObject(threading.Thread, RemoteObject):
-    def __init__(self, port, host = '', debug = False, timeout = 1, reuseaddr = True):
-        threading.Thread.__init__(self)
-        RemoteObject.__init__(self)
-        self.lock = threading.Lock()
-        self._log = logging.Logger(debug)
-        self.running = False
-        self.registered = False
-        self.port = port
-        self.host = host
-        self.reuseaddr = reuseaddr
-        socket.setdefaulttimeout(timeout)
-        self.responders = []
-
-    def run_wait(self):
-        try:
-            self.pre_run()
-            self.running = True
-            self.start()
-            while self.running:
-                time.sleep(1)
-        finally:
-            self.close()
-
-    def pre_run(self):
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if self.reuseaddr:
-            self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.s.bind((self.host, self.port))
-        self.port = self.s.getsockname()[1]              
-        self.s.listen(1)
-        self._log.info("Service listening on port {0}".format(self.port))
-
-    def run(self):
-        while self.running:
-            try:
-                conn, addr = self.s.accept()
-                self._log.info("Got connection from {0}".format(addr))
-                responder = ServiceResponder(self, conn, addr, self._log)
-                responder.start()
-                self.responders.append(responder)
-            except socket.timeout:
-                continue
-            except Exception as e:
-                self._log.error("An error occured: {0}".format(e))
-                self.close()
-            
-    def close(self):
-        for responder in self.responders:
-            responder.close()
-        if not self.running: return
-        self.running = False
-        if self.s != None:
-            self._log.info("Closing socket")
-            self.s.close()
-            del self.s
-
-class ServiceResponder(threading.Thread):
-    def __init__(self, service_obj, socket, addr, log):
-        threading.Thread.__init__(self)
-        self.service_obj = service_obj
-        self.socket = socket
-        self.addr = addr
-        self._log = log
-        self.running = True
-    def run(self):
-        recvd = ""
-        while self.running:
-            try:
-                msg = message.deserialize(self.socket)
-                if type(msg) is message.Request:
-                    response = message.Response(msg.id)
-                    method_target = self.service_obj.get_method(msg.method.split('.'))
-                    if method_target != None:
-                        self.service_obj.lock.acquire()
-                        try:
-                            response.result = method_target(*msg.params[0], **msg.params[1])
-                            self._log.info("{0} called \"{1}\" returning {2}".format(self.addr, msg.method, json.dumps(response.result)))
-                        except Exception as e:
-                            self._log.info("An exception occured while calling {0}: {1}".format(msg.method, e))
-                            response.error = exception.exception_to_error(e)
-                        finally:
-                            self.service_obj.lock.release()
-                    else:
-                        response.error = {"code": -32601, "message": "No such method {0}".format(msg.method)}
-                    
-                    response.serialize(self.socket)
-                else:
-                    self._log.info("Got a message of uknown type")
-            except socket.timeout:
-                continue
-            except Exception as e:
-                self._log.info("Client socket exception: {0}".format(e))
-                break
-        self.close()
-
-    def close(self):
-        if not self.running: return
-        self.running = False
-        if self.socket != None:
-            self._log.info("Client disconnected {0}".format(self.addr))
-            self.socket.close()
-            del self.socket
-
-    def __del__(self):
-        self.close()
-        del self
+    def on_receive(self, message):
+        method = self.get_method(message.method)
+        if not method is None:
+            return method(message.params)
+        raise JRPCError("Method not found")
 
 class CallBack(object):
     def __init__(self, procedure_name, proxy):
