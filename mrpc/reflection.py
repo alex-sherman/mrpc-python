@@ -16,7 +16,6 @@ class RPCType(object):
             output.update(attribute.toTypeDef(typeDef))
         return output
 
-
     def __init__(self):
         self.type = self.__class__.__name__
         boring = dir(type(self.type, (object,), {}))

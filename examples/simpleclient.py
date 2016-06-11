@@ -1,6 +1,7 @@
 #!/usr/bin/python
-import jrpc
+import mrpc
+from mrpc.transport import SocketTransport
 
-server = None
-server = jrpc.service.SocketProxy(50021) #The server's listening port
-print server.echo("Hello World!")
+mrpc.use_transport(SocketTransport(50020))
+server = mrpc.Proxy(mrpc.Path.BROADCAST)
+print server.Reflect().get()
