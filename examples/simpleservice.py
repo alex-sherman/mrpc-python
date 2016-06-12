@@ -7,8 +7,13 @@ class SimpleService(mrpc.Service):
     def echo(self, msg):
         return msg
 
+class OtherService(mrpc.Service):
+    @mrpc.service.method
+    def echo(self, msg):
+        return msg + "OTHER"
+
 if __name__ == "__main__":
-    server = SimpleService()
     mrpc.use_transport(SocketTransport())
-    mrpc.set_service(server)
+    mrpc.register_service(SimpleService())
+    mrpc.register_service(OtherService())
     mrpc.LocalNode.run()

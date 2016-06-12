@@ -12,7 +12,7 @@ Proxy = proxy.Proxy
 Path = path.Path
 
 use_transport = LocalNode.use_transport
-set_service = LocalNode.set_service
+register_service = LocalNode.register_service
 
 __author__ = "Alex Sherman <asherman1024@gmail.com>"
 __copyright__ = "Copyright 2014"

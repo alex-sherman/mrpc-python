@@ -19,10 +19,10 @@ def _getInheritanceList(exception):
     return inheritance
 
 def exception_to_error(exception):
-    code = JRPCError.base_exception_code
+    code = MRPCError.base_exception_code
     return {"code": code, "message": str(exception), "data": {"classes": _getInheritanceList(exception), "args": exception.args}}
 
-class JRPCError(Exception):
+class MRPCError(Exception):
     base_exception_code = -32000
 
     @staticmethod
@@ -33,45 +33,48 @@ class JRPCError(Exception):
             data = error["data"]
         else:
             data = None
-        if code in JRPCError.error_codes:
-            return JRPCError.error_codes[code](msg, code, data)
+        if code in MRPCError.error_codes:
+            return MRPCError.error_codes[code](msg, code, data)
         elif code <= -32000 and code >= -32099:
-            if code == JRPCError.base_exception_code:
+            if code == MRPCError.base_exception_code:
                 if data != None and "classes" in data and "args" in data:
                     exceptType = _get_closest_exception(data["classes"])
                     if exceptType != None:
                         return exceptType(*data["args"])
             return ServerError(msg, code, data)
         
-        return JRPCError(msg, code, data)
+        return MRPCError(msg, code, data)
         
-    def __init__(self, msg, code = 0, data = None):
+    def __init__(self, msg = None, code = 0, data = None):
         self.code = code
         self.data = data
         Exception.__init__(self, msg)
 
-class ParseError(JRPCError):
+class NoReturn(MRPCError):
     pass
 
-class InvalidRequest(JRPCError):
+class ParseError(MRPCError):
     pass
 
-class MethodNotFound(JRPCError):
+class InvalidRequest(MRPCError):
     pass
 
-class InvalidParams(JRPCError):
+class MethodNotFound(MRPCError):
     pass
 
-class InternalError(JRPCError):
+class InvalidParams(MRPCError):
     pass
 
-class ServerError(JRPCError):
+class InternalError(MRPCError):
     pass
 
-class ClientError(JRPCError):
+class ServerError(MRPCError):
     pass
 
-JRPCError.error_codes = {-32700: ParseError, -32600: InvalidRequest,
+class ClientError(MRPCError):
+    pass
+
+MRPCError.error_codes = {-32700: ParseError, -32600: InvalidRequest,
                              -32601: MethodNotFound, -32602: InvalidParams,
                              -32603: InternalError}
 

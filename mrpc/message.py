@@ -3,7 +3,6 @@ import json
 import exception
 import socket
 
-
 def from_bytes(raw_bytes):
     try:
         obj = json.loads(raw_bytes)
@@ -15,12 +14,18 @@ def from_bytes(raw_bytes):
         return None
 
 class Message(object):
+    required_fields = ["id", "src", "dst"]
     def __init__(self, **kwargs):
         self.obj = dict(kwargs)
 
     @property
     def bytes(self):
         return json.dumps(self.obj)
+
+    def copy(self):
+        copy = Message()
+        copy.obj = json.loads(self.bytes)
+        return copy
 
     def __str__(self):
         return json.dumps(self.obj)
@@ -35,7 +40,7 @@ class Message(object):
         else: self.obj[name] = value
 
 class Request(Message):
-    required_fields = ["id", "procedure"]
+    required_fields = Message.required_fields + ["procedure"]
     @staticmethod
     def json_obj_is(json_obj):
         return all([field in json_obj for field in Request.required_fields])
@@ -47,7 +52,7 @@ class Request(Message):
         return request
 
 class Response(Message):
-    required_fields = ["id"]
+    required_fields = Message.required_fields
     @staticmethod
     def json_obj_is(json_obj):
         return all([field in json_obj for field in Response.required_fields]) and ("result" in json_obj or "error" in json_obj)

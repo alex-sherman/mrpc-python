@@ -3,13 +3,14 @@ import threading
 from mrpc import LocalNode
 
 class CallThrough(object):
-    def __init__(self, procedure_name, proxy):
-        self.proxy = proxy
+    def __init__(self, path, procedure_name, transport):
+        self.transport = transport
+        self.path = path
         self.procedure_name = procedure_name
     def __getattr__(self, name):
-        return CallThrough(self.procedure_name + "." + name, self.proxy)
+        return CallThrough(self.procedure_name + "." + name, self.path)
     def __call__(self, *args, **kwargs):
-        return self.proxy.rpc(self.procedure_name, args, kwargs)
+        return Proxy._rpc(self.path, self.procedure_name, self.transport, *args, **kwargs)
 
 class RPCResult(object):
     def __init__(self):
@@ -18,7 +19,7 @@ class RPCResult(object):
         self.result = None
         self.actions = []
 
-    def complete(self, result):
+    def success(self, result):
         self.condition.acquire()
         self.result = result
         self.completed = True
@@ -34,8 +35,9 @@ class RPCResult(object):
         else:
             action(self.result)
         self.condition.release()
+        return self
 
-    def get(self, timeout = 5):
+    def wait(self, timeout = 5):
         self.condition.acquire()
         try:
             while not self.completed:
@@ -44,27 +46,32 @@ class RPCResult(object):
                     raise Exception("Timeout")
         finally:
             self.condition.release()
+
+    def get(self, timeout = 5):
+        self.wait(timeout)
         return self.result
 
 class Proxy(object):
-    def __init__(self, target_path):
+    def __init__(self, target_path = None, transport = None):
         self.next_id = 1
         self.path = target_path
+        self.transport = None
 
-    def rpc(self, remote_procedure, args, kwargs):
-        msg = message.Request(procedure = remote_procedure, args = args, kwargs = kwargs)
+    @staticmethod
+    def rpc(path, remote_procedure, *args, **kwargs):
+        return Proxy._rpc(path, remote_procedure, None, *args, **kwargs)
+
+    @staticmethod
+    def _rpc(path, remote_procedure, transport, *args, **kwargs):
+        msg = message.Request(
+            id = LocalNode.request_id(),
+            src = LocalNode.guid.hex,
+            dst = path,
+            procedure = remote_procedure,
+            args = args, kwargs = kwargs)
         output = RPCResult()
-        LocalNode.send(self.path, msg, output.complete)
+        LocalNode.send(msg, success = output.success, transport = transport)
         return output
-
-    def close(self):
-        if "socket" in self.__dict__ and self.socket != None:
-            self.socket.close()
-        self.socket = None
-        
-    def __del__(self):
-        self.close()
-        del self
         
     def __getattr__(self, name):
-        return CallThrough(name, self)
+        return CallThrough(self.path, name, self.transport)

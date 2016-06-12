@@ -4,15 +4,15 @@ import socket
 import message
 import uuid
 import struct
-from mrpc import Path
-from mrpc import LocalNode
+import mrpc
 
 class Transport(object):
     def __init__(self):
         self.closing = Event()
         self.thread = None
-        self.thread = TransportThread(self.recv, self.on_recv, self.closing, log = print)
+        self.thread = TransportThread(self.recv, self.closing, log = print)
         self.thread.start()
+        self.routing = mrpc.Proxy("*/Routing", transport = self)
 
     def send(self, destination, message):
         raise NotImplementedError()
@@ -20,26 +20,14 @@ class Transport(object):
     def recv(self):
         raise NotImplementedError()
 
-    def on_recv(self, message):
-        response = message.deserialize(self.socket)
-        if not type(response) is message.Response:
-            raise exception.JRPCError("Received a message of uknown type")
-        if response.id != msg.id: raise exception.JRPCError(0, "Got a response for a different request ID")
-        if hasattr(response, "result"):
-            return response.result
-        elif hasattr(response, "error"):
-            raise exception.JRPCError.from_error(response.error)
-        raise Exception("Deserialization failure!!")
-
     def close(self):
         self.closing.set()
 
 class TransportThread(Thread):
-    def __init__(self, recv, callback, closing, log = None):
+    def __init__(self, recv, closing, log = None):
         Thread.__init__(self)
         self.daemon = True
         self.recv = recv
-        self.callback = callback
         self.closing = closing
         self._log = log if log is not None else lambda msg: None
 
@@ -47,12 +35,11 @@ class TransportThread(Thread):
         recvd = ""
         while not self.closing.is_set():
             try:
-                source, raw_bytes = self.recv()
-                msg = message.from_bytes(raw_bytes)
+                msg = self.recv()
                 if not msg is None:
-                    LocalNode.on_recv(source, msg)
+                    mrpc.LocalNode.on_recv(msg)
                 else:
-                    print("Message failed to parse")
+                    print("Message failed to parse:", raw_bytes)
             except socket.timeout:
                 continue
             except Exception as e:
@@ -90,22 +77,30 @@ class SocketTransport(Transport):
         while True:
             try:
                 msg_bytes, address = self.socket.recvfrom(4096)
-                guid = uuid.UUID(bytes = msg_bytes[:16])
-                self.known_guids[guid] = address
-                return guid, msg_bytes[16:]
+                msg = message.from_bytes(msg_bytes)
+                if msg != None:
+                    guid = uuid.UUID(msg.src)
+                    self.known_guids[guid] = address
+                return msg
             except socket.timeout:
                 continue
             except Exception as e:
                 print("An error occured: {0}".format(e))
 
-    def send(self, destination, message):
+    def send(self, message, guid_dest = None):
+        destination = message.dst
+        if guid_dest:
+            destination = uuid.UUID(guid_dest)
         socket_dst = None
-        if destination == Path.BROADCAST:
+        destination = mrpc.Path(destination)
+        if destination.is_broadcast:
             socket_dst = (self.broadcast, self.remote_port)
         elif destination.guid and destination.guid in self.known_guids:
             socket_dst = self.known_guids[destination.guid]
-        else:
-            raise NotImplementedError()
 
-        self.socket.sendto(LocalNode.guid.bytes + message.bytes, socket_dst)
+        if socket_dst:
+            self.socket.sendto(message.bytes, socket_dst)
+        else:
+            self.routing.who_has(destination.service).when(lambda guid: self.send(message, guid))
+
 
