@@ -1,6 +1,6 @@
 import message
 import threading
-from mrpc import LocalNode
+import mrpc
 
 class CallThrough(object):
     def __init__(self, path, procedure_name, transport):
@@ -10,7 +10,7 @@ class CallThrough(object):
     def __getattr__(self, name):
         return CallThrough(self.procedure_name + "." + name, self.path)
     def __call__(self, *args, **kwargs):
-        return Proxy._rpc(self.path, self.procedure_name, self.transport, *args, **kwargs)
+        return mrpc.rpc_transport(self.path, self.procedure_name, self.transport, *args, **kwargs)
 
 class RPCResult(object):
     def __init__(self):
@@ -56,22 +56,6 @@ class Proxy(object):
         self.next_id = 1
         self.path = target_path
         self.transport = None
-
-    @staticmethod
-    def rpc(path, remote_procedure, *args, **kwargs):
-        return Proxy._rpc(path, remote_procedure, None, *args, **kwargs)
-
-    @staticmethod
-    def _rpc(path, remote_procedure, transport, *args, **kwargs):
-        msg = message.Request(
-            id = LocalNode.request_id(),
-            src = LocalNode.guid.hex,
-            dst = path,
-            procedure = remote_procedure,
-            args = args, kwargs = kwargs)
-        output = RPCResult()
-        LocalNode.send(msg, success = output.success, transport = transport)
-        return output
         
     def __getattr__(self, name):
         return CallThrough(self.path, name, self.transport)

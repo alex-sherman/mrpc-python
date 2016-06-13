@@ -4,6 +4,7 @@ from collections import defaultdict
 from message import Response, Request
 from mrpc.path import Path
 import mrpc.routing
+from proxy import RPCResult
 
 class Node(object):
     
@@ -36,6 +37,20 @@ class Node(object):
         if(path == None):
             path = str(type(service).__name__)
         self.services[path] = service
+
+    def rpc(self, path, remote_procedure, *args, **kwargs):
+        return self.rpc_transport(path, remote_procedure, None, *args, **kwargs)
+
+    def rpc_transport(self, path, remote_procedure, transport, *args, **kwargs):
+        msg = Request(
+            id = self.request_id(),
+            src = self.guid.hex,
+            dst = path,
+            procedure = remote_procedure,
+            args = args, kwargs = kwargs)
+        output = RPCResult()
+        self.send(msg, success = output.success, transport = transport)
+        return output
 
     def send(self, message, success = None, failure = None, transport = None):
         self.callbacks[message.id] = (success, failure)

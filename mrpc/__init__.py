@@ -13,6 +13,8 @@ Path = path.Path
 
 use_transport = LocalNode.use_transport
 register_service = LocalNode.register_service
+rpc = LocalNode.rpc
+rpc_transport = LocalNode.rpc_transport
 
 __author__ = "Alex Sherman <asherman1024@gmail.com>"
 __copyright__ = "Copyright 2014"

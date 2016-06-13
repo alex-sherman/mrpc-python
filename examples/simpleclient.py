@@ -3,7 +3,7 @@ from __future__ import print_function
 import mrpc
 from mrpc.transport import SocketTransport
 
-mrpc.use_transport(SocketTransport(50020))
+mrpc.use_transport(SocketTransport(0))
 server = mrpc.Proxy("/SimpleService")
 print(server.echo("Faff").get())
 server = mrpc.Proxy("/OtherService")
