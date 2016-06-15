@@ -1,7 +1,7 @@
 import uuid
 import time
 from collections import defaultdict
-from message import Response, Request
+from message import Message
 from mrpc.path import Path
 import mrpc.routing
 from proxy import RPCResult
@@ -38,16 +38,13 @@ class Node(object):
             path = str(type(service).__name__)
         self.services[path] = service
 
-    def rpc(self, path, remote_procedure, *args, **kwargs):
-        return self.rpc_transport(path, remote_procedure, None, *args, **kwargs)
-
-    def rpc_transport(self, path, remote_procedure, transport, *args, **kwargs):
-        msg = Request(
+    def rpc(self, path, remote_procedure, value, transport = None):
+        msg = Message(
             id = self.request_id(),
             src = self.guid.hex,
             dst = path,
             procedure = remote_procedure,
-            args = args, kwargs = kwargs)
+            value = value)
         output = RPCResult()
         self.send(msg, success = output.success, transport = transport)
         return output
@@ -66,7 +63,7 @@ class Node(object):
 
     def on_recv(self, message):
         dst = Path(message.dst)
-        if type(message) is Response:
+        if message.is_response:
             if message.id in self.callbacks:
                 success, failure = self.callbacks[message.id]
                 try:
@@ -76,17 +73,18 @@ class Node(object):
                         failure(exception.JRPCError.from_error(response.error))
                 except Exception as e:
                     print(e)
-        elif type(message) is Request:
+        elif message.is_request:
             for service in self.get_services(dst):
                 method = service.get_method(message.procedure.split("."))
                 if method:
-                    response = Response(
+                    response = Message(
                         id = message.id,
                         src = self.guid.hex,
                         dst = message.src)
                     try:
-                        response.result = method(*message.args)
+                        response.result = method(message.value)
                     except Exception as e:
+                        print(e)
                         response = None
 
                     if response:

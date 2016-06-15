@@ -7,13 +7,13 @@ class SimpleService(mrpc.Service):
     def echo(self, msg):
         return msg
 
-class OtherService(mrpc.Service):
+class LivingRoom(mrpc.Service):
     @mrpc.service.method
-    def echo(self, msg):
-        return msg + "OTHER"
+    def temperature(self, temp):
+        print("Temperature:", temp)
 
 if __name__ == "__main__":
-    mrpc.use_transport(SocketTransport())
+    mrpc.use_transport(SocketTransport(host = "192.168.1.4"))
     mrpc.register_service(SimpleService())
-    mrpc.register_service(OtherService())
+    mrpc.register_service(LivingRoom())
     mrpc.LocalNode.run()

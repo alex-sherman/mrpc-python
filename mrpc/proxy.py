@@ -9,8 +9,8 @@ class CallThrough(object):
         self.procedure_name = procedure_name
     def __getattr__(self, name):
         return CallThrough(self.procedure_name + "." + name, self.path)
-    def __call__(self, *args, **kwargs):
-        return mrpc.rpc_transport(self.path, self.procedure_name, self.transport, *args, **kwargs)
+    def __call__(self, value = None):
+        return mrpc.rpc(self.path, self.procedure_name, value, self.transport)
 
 class RPCResult(object):
     def __init__(self):

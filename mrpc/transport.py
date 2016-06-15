@@ -1,7 +1,7 @@
 from __future__ import print_function
 from threading import Thread, Event
 import socket
-import message
+from message import Message
 import uuid
 import struct
 import mrpc
@@ -14,7 +14,7 @@ class Transport(object):
         self.thread.start()
         self.routing = mrpc.Proxy("*/Routing", transport = self)
 
-    def send(self, destination, message):
+    def send(self, message):
         raise NotImplementedError()
 
     def recv(self):
@@ -39,7 +39,7 @@ class TransportThread(Thread):
                 if not msg is None:
                     mrpc.LocalNode.on_recv(msg)
                 else:
-                    print("Message failed to parse:", raw_bytes)
+                    print("Message failed to parse")
             except socket.timeout:
                 continue
             except Exception as e:
@@ -77,8 +77,8 @@ class SocketTransport(Transport):
         while True:
             try:
                 msg_bytes, address = self.socket.recvfrom(4096)
-                msg = message.from_bytes(msg_bytes)
-                if msg != None:
+                msg = Message.from_bytes(msg_bytes)
+                if msg != None and msg.is_valid:
                     guid = uuid.UUID(msg.src)
                     self.known_guids[guid] = address
                 return msg
