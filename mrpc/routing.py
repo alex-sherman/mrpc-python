@@ -8,6 +8,12 @@ class Routing(Service):
         return mrpc.LocalNode.services.keys()
 
     @method
+    def list_procedures(self, path):
+        services = mrpc.LocalNode.get_services(Path(path))
+        procedures = [method for service in services for method in service._methods()]
+        return procedures
+
+    @method
     def who_has(self, path):
         if mrpc.LocalNode.get_services(Path(path)):
             return mrpc.LocalNode.guid.hex

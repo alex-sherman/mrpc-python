@@ -37,40 +37,12 @@ class rpc_property(property):
 class Service(object):
     def __init__(self):
         self.transports = []
-    def _get_methods(self):
+
+    def _methods(self):
         return dict([method for method in inspect.getmembers(self) if hasattr(method[1], "jrpc_method") and method[1].jrpc_method])
-    def _get_objects(self):
-        return dict([obj for obj in inspect.getmembers(self) if isinstance(obj[1], Service)])
 
-    def get_method(self, path):
-        methods = self._get_methods()
-        if path[0] in methods:
-            return methods[path[0]]
-        objects = self._get_objects()
-        if len(path) > 1 and path[0] in objects:
-            return objects[path[0]].get_method(path[1:])
+    def get_method(self, method):
+        methods = self._methods()
+        if method in methods:
+            return methods[method]
         return None
-
-    @method
-    def Reflect(self, types = {}):
-        """Reflect returns optional information about
-        the remote object's endpoints. The author may not
-        specify any reflection information, in which case,
-        this will return mostly empty. If specified, this
-        method will return custom types, method signatures
-        and sub object reflection information
-        """
-        types = dict(types)
-        selfTypes = {}
-        methods = {}
-        for name, method in self._get_methods().iteritems():
-            methods[name] = {'options': method.options, 'arguments': RPCType.ToDict(method.arguments)}
-            selfTypes.update(RPCType.ToTypeDef(method.arguments, types))
-
-        interfaces = dict([(name, obj.Reflect(types)) for name, obj in self._get_objects().iteritems()])
-        return {
-            "types": selfTypes,
-            "methods": methods,
-            "interfaces": interfaces
-        }
-

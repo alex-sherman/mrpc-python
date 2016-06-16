@@ -75,7 +75,7 @@ class Node(object):
                     print(e)
         elif message.is_request:
             for service in self.get_services(dst):
-                method = service.get_method(message.procedure.split("."))
+                method = service.get_method(message.procedure)
                 if method:
                     response = Message(
                         id = message.id,
