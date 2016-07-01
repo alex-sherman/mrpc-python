@@ -31,5 +31,7 @@ class Path(object):
     def is_match(self, other):
         if not type(other) is Path:
             other = Path(other)
+        if self.is_broadcast or other.is_broadcast:
+            return True
         return self.service == other.service
     

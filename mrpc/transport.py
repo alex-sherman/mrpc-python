@@ -8,28 +8,42 @@ import mrpc
 
 class Transport(object):
     def __init__(self):
-        self.closing = Event()
-        self.thread = None
-        self.thread = TransportThread(self.recv, self.closing, log = print)
-        self.thread.start()
         self.routing = mrpc.Proxy("*/Routing", transport = self)
+        self.node = None
+
+    def begin(self, node):
+        self.node = node
 
     def send(self, message):
         raise NotImplementedError()
 
+    def close(self):
+        pass
+
+class PollingTransport(Transport):
+    def __init__(self):
+        Transport.__init__(self)
+        self.closing = Event()
+
     def recv(self):
         raise NotImplementedError()
+
+    def begin(self, node):
+        Transport.begin(self, node)
+        self.thread = TransportThread(self.recv, self.closing, node, log = print)
+        self.thread.start()
 
     def close(self):
         self.closing.set()
 
 class TransportThread(Thread):
-    def __init__(self, recv, closing, log = None):
+    def __init__(self, recv, closing, node, log = None):
         Thread.__init__(self)
         self.daemon = True
         self.recv = recv
         self.closing = closing
         self._log = log if log is not None else lambda msg: None
+        self.node = node
 
     def run(self):
         recvd = ""
@@ -37,7 +51,7 @@ class TransportThread(Thread):
             try:
                 msg = self.recv()
                 if not msg is None:
-                    mrpc.LocalNode.on_recv(msg)
+                    self.node.on_recv(msg)
                 else:
                     print("Message failed to parse")
             except socket.timeout:
@@ -54,7 +68,7 @@ class TransportThread(Thread):
         self.close()
         del self
 
-class SocketTransport(Transport):
+class SocketTransport(PollingTransport):
     def __init__(self, local_port = 50123, host = '', remote_port = 50123, timeout = 1, reuseaddr = True, broadcast = "255.255.255.255"):
         self.port = local_port
         self.host = host
@@ -70,7 +84,7 @@ class SocketTransport(Transport):
         self.port = self.socket.getsockname()[1]
         self.known_guids = {}
         self.broadcast = broadcast
-        Transport.__init__(self)
+        PollingTransport.__init__(self)
         print("Service listening on port {0}".format(self.port))
 
     def recv(self):

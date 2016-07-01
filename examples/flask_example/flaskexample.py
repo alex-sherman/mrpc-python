@@ -1,15 +1,11 @@
-from jrpc.web import *
-import jrpc.service
+from mrpc.web import *
 from flask import Flask, render_template
+import mrpc
+from mrpc.transport import SocketTransport
 
 app = Flask(__name__)
-
-class WebService(JRPCBlueprint):
-    @jrpc.service.method(path = "/echo/<name>")
-    def echo(self, text, prefix = "Hello from", name = ""):
-        return {"subject": prefix + " " + name, "message": text}
-
-app.register_blueprint(WebService("service", __name__, url_prefix="/api"))
+mrpc.use_transport(SocketTransport(0, "192.168.1.4"))
+app.register_blueprint(FlaskForwarder("service", __name__, url_prefix="/api"))
 
 @app.route('/')
 def index():

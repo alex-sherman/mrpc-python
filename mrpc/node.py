@@ -5,6 +5,7 @@ from message import Message
 from mrpc.path import Path
 import mrpc.routing
 from proxy import RPCResult
+import inspect
 
 class Node(object):
     
@@ -32,18 +33,19 @@ class Node(object):
 
     def use_transport(self, transport):
         self.transports.append(transport)
+        transport.begin(self)
 
     def register_service(self, service, path = None):
         if(path == None):
             path = str(type(service).__name__)
         self.services[path] = service
 
-    def rpc(self, path, remote_procedure, value, transport = None):
+    def rpc(self, path, procedure, value = None, transport = None):
         msg = Message(
             id = self.request_id(),
             src = self.guid.hex,
             dst = path,
-            procedure = remote_procedure,
+            procedure = procedure,
             value = value)
         output = RPCResult()
         self.send(msg, success = output.success, transport = transport)
@@ -77,12 +79,16 @@ class Node(object):
             for service in self.get_services(dst):
                 method = service.get_method(message.procedure)
                 if method:
+                    args = [message.value]
+                    if message.value is None:
+                        try: inspect.getcallargs(method, *args)
+                        except: args = []
                     response = Message(
                         id = message.id,
                         src = self.guid.hex,
                         dst = message.src)
                     try:
-                        response.result = method(message.value)
+                        response.result = method(*args)
                     except Exception as e:
                         print(e)
                         response = None
