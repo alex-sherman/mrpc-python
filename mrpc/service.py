@@ -9,25 +9,44 @@ import inspect
 import types
 import reflection
 from reflection import RPCType
+from functools import wraps
 
-def method(*args, **kwargs):
-    if(len(args) > 0 and isinstance(args[0], types.FunctionType)):
-        args[0].options = kwargs
-        args[0].jrpc_method = True
-        argSpec = inspect.getargspec(args[0])
-        defaults = len(argSpec[3]) if argSpec[3] != None else 0
-        argNames = argSpec[0][1:]
-        argTypes = args[1:] if len(args) > 1 else []
-        argCount = len(argNames)
-        while len(argTypes) < len(argNames):
-            argTypes.append(reflection.UNKNOWN())
-        #Mark any parameters with defaults as optional
-        if defaults > 0:
-            for optionalArg in argTypes[-defaults:]:
-                optionalArg.optional = True
-        args[0].arguments = zip(argNames, argTypes)
-        return args[0]
-    return lambda func: method(func, *args, **kwargs)
+def valid_args(func, instance, *args, **kwargs):
+    try:
+        if instance:
+            inspect.getcallargs(func, instance, *args, **kwargs)
+        else:
+            inspect.getcallargs(func, *args, **kwargs)
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
+
+class method(object):
+    def __init__(self, func):
+        @wraps(func)
+        def wrapped(value, instance = None):
+            args = [value]
+            kwargs = {}
+            if value is None and valid_args(func, instance):
+                args = []
+            elif type(value) is list and valid_args(func, instance, *value):
+                args = value
+            elif type(value) is dict and valid_args(func, instance, **value):
+                args = []
+                kwargs = value
+            if instance:
+                return func(instance, *args, **kwargs)
+            else:
+                return func(*args, **kwargs)
+        self.wrapped = wrapped
+    def __get__(self, instance, owner):
+        output = lambda value: self.wrapped(value, instance)
+        output.mrpc_method = True
+        return output
+    def __call__(self, value):
+        return self.wrapped(value)
 
 class rpc_property(property):
     def __init__(self, getter):
@@ -36,13 +55,9 @@ class rpc_property(property):
 
 class Service(object):
     def __init__(self):
-        self.transports = []
-
-    def _methods(self):
-        return dict([method for method in inspect.getmembers(self) if hasattr(method[1], "jrpc_method") and method[1].jrpc_method])
+        self._methods = dict([_method for _method in inspect.getmembers(self) if hasattr(_method[1], "mrpc_method") and _method[1].mrpc_method])
 
     def get_method(self, method):
-        methods = self._methods()
-        if method in methods:
-            return methods[method]
+        if method in self._methods:
+            return self._methods[method]
         return None

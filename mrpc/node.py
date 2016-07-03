@@ -1,3 +1,4 @@
+from __future__ import print_function
 import uuid
 import time
 from collections import defaultdict
@@ -6,6 +7,7 @@ from mrpc.path import Path
 import mrpc.routing
 from proxy import RPCResult
 import inspect
+from exception import NoReturn
 
 class Node(object):
     
@@ -37,7 +39,7 @@ class Node(object):
 
     def register_service(self, service, path = None):
         if(path == None):
-            path = str(type(service).__name__)
+            path = self.path_prefix + str(type(service).__name__)
         self.services[path] = service
 
     def rpc(self, path, procedure, value = None, transport = None):
@@ -61,7 +63,7 @@ class Node(object):
 
     def get_services(self, path):
         return [service for service_path, service in self.services.items()
-                    if path.is_match(Path(self.path_prefix + service_path))]
+                    if path.is_match(Path(service_path))]
 
     def on_recv(self, message):
         dst = Path(message.dst)
@@ -74,23 +76,20 @@ class Node(object):
                     elif hasattr(message, "error"):
                         failure(exception.JRPCError.from_error(response.error))
                 except Exception as e:
-                    print(e)
+                    print("Error:", e)
         elif message.is_request:
             for service in self.get_services(dst):
                 method = service.get_method(message.procedure)
                 if method:
-                    args = [message.value]
-                    if message.value is None:
-                        try: inspect.getcallargs(method, *args)
-                        except: args = []
                     response = Message(
                         id = message.id,
                         src = self.guid.hex,
                         dst = message.src)
                     try:
-                        response.result = method(*args)
+                        response.result = method(message.value)
+                    except NoReturn: return
                     except Exception as e:
-                        print(e)
+                        print("Error:", e)
                         response = None
 
                     if response:

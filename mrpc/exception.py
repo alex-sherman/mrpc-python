@@ -48,6 +48,8 @@ class MRPCError(Exception):
     def __init__(self, msg = None, code = 0, data = None):
         self.code = code
         self.data = data
+        if msg is None:
+            msg = str(self.__class__.__name__)
         Exception.__init__(self, msg)
 
 class NoReturn(MRPCError):

@@ -10,7 +10,7 @@ class Routing(Service):
     @method
     def list_procedures(self, path):
         services = mrpc.LocalNode.get_services(Path(path))
-        procedures = [method for service in services for method in service._methods()]
+        procedures = [method for service in services for method in service._methods]
         return procedures
 
     @method
