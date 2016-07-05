@@ -21,10 +21,17 @@ class Node(object):
         self.callbacks = {}
         self.path_prefix = "/"
         self.register_service(mrpc.routing.Routing())
+        self.events = []
 
     def run(self):
         try:
             while any([not transport.closing.is_set() for transport in self.transports]):
+                if self.events and time.time() >= self.events[0][0]:
+                    event = self.events.pop()
+                    try:
+                        event[1]()
+                    except Exception as e:
+                        print(e)
                 time.sleep(0.1)
         finally:
             [transport.close() for transport in self.transports]
@@ -41,6 +48,10 @@ class Node(object):
         if(path == None):
             path = self.path_prefix + str(type(service).__name__)
         self.services[path] = service
+
+    def event(self, delay, callback):
+        self.events.append((time.time() + delay, callback))
+        self.events = sorted(self.events)
 
     def rpc(self, path, procedure, value = None, transport = None):
         msg = Message(

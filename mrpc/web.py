@@ -18,7 +18,10 @@ var mrpc = function(prefix) {{
                 dataType: "json",
                 contentType: "application/json",
                 method: "POST",
-                data: JSON.stringify(data)
+                data: JSON.stringify(data),
+                error: function(error) {{
+                    console.log(error)
+                }}
             }});
         }}
     }}
