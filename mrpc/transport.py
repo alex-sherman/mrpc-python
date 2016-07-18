@@ -101,7 +101,11 @@ class SocketTransport(PollingTransport):
             except Exception as e:
                 print("An error occured: {0}".format(e))
 
-    def send(self, message, socket_dst = None):
-        self.socket.sendto(message.bytes, (self.broadcast, self.remote_port))
+    def send(self, message):
+        socket_dst = (self.broadcast, self.remote_port)
+        dst = mrpc.Path(message.dst)
+        if dst.guid and dst.guid in self.known_guids:
+            socket_dst = self.known_guids[dst.guid]
+        self.socket.sendto(message.bytes, socket_dst)
 
 
