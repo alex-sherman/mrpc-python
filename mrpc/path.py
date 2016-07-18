@@ -1,4 +1,5 @@
 import uuid
+from exception import InvalidPath
 
 class Path(object):
     def __init__(self, path):
@@ -18,9 +19,9 @@ class Path(object):
             if self.name[0] == '/':
                 self.name = self.name[1:]
             elif (not self.name == "*") and (not self.guid):
-                raise ValueError("Invalid path: " + path)
+                raise InvalidPath("Invalid path: " + path)
         else:
-            raise ValueError("Invalid path: " + path)
+            raise InvalidPath("Invalid path: " + path)
 
     @property
     def guid(self):
@@ -37,7 +38,6 @@ class Path(object):
             return False
         if self.is_wildcard:
             return True
-        print aliases
         output = self.name in service.aliases + [aliases]
         return output
     

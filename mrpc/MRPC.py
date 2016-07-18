@@ -6,7 +6,7 @@ from message import Message
 from path import Path
 from proxy import RPCResult, Proxy
 import inspect
-from exception import NoReturn
+from exception import NoReturn, InvalidPath
 from service import Service
 
 class MRPC(object):
@@ -48,7 +48,7 @@ class MRPC(object):
                         print(e)
                 time.sleep(0.1)
         finally:
-            [transport.close() for transport in self.transports]
+            self.close()
 
     def request_id(self):
         self._request_id += 1
@@ -57,11 +57,6 @@ class MRPC(object):
     def use_transport(self, transport):
         self.transports.append(transport)
         transport.begin(self)
-
-    def create_service(self, service, path = None):
-        if(path == None):
-            path = self.path_prefix + str(type(service).__name__)
-        self.services[path] = service
 
     def event(self, delay, callback):
         self.events.append((time.time() + delay, callback))
@@ -82,32 +77,43 @@ class MRPC(object):
             transport.send(msg)
         return output
 
+    def close(self):
+        [transport.close() for transport in self.transports]
+        for service in self.services.values():
+            try:
+                service.close()
+            except Exception as e:
+                print(e)
+
     def on_recv(self, message):
-        dst = Path(message.dst)
-        if message.is_response:
-            if message.id in self.callbacks:
-                success, failure = self.callbacks[message.id]
-                try:
-                    if hasattr(message, "result"):
-                        success(message.result)
-                    elif hasattr(message, "error"):
-                        failure(exception.JRPCError.from_error(response.error))
-                except Exception as e:
-                    print("Error:", e)
-        elif message.is_request:
-            for service_name, service in self.services.items():
-                if dst.is_match(service_name, service, self):
-                    response = Message(
-                        id = message.id,
-                        src = self.guid.hex,
-                        dst = message.src)
+        try:
+            dst = Path(message.dst)
+            if message.is_response:
+                if message.id in self.callbacks:
+                    success, failure = self.callbacks[message.id]
                     try:
-                        response.result = service(message.value)
-                    except NoReturn: return
+                        if hasattr(message, "result"):
+                            success(message.result)
+                        elif hasattr(message, "error"):
+                            failure(exception.JRPCError.from_error(response.error))
                     except Exception as e:
                         print("Error:", e)
-                        response = None
+            elif message.is_request:
+                for service_name, service in self.services.items():
+                    if dst.is_match(service_name, service, self):
+                        response = Message(
+                            id = message.id,
+                            src = self.guid.hex,
+                            dst = message.src)
+                        try:
+                            response.result = service(message.value)
+                        except NoReturn: return
+                        except Exception as e:
+                            print("Error:", e)
+                            response = None
 
-                    if response:
-                        for transport in self.transports:
-                            transport.send(response)
+                        if response:
+                            for transport in self.transports:
+                                transport.send(response)
+        except InvalidPath:
+            pass

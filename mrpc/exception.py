@@ -52,6 +52,9 @@ class MRPCError(Exception):
             msg = str(self.__class__.__name__)
         Exception.__init__(self, msg)
 
+class InvalidPath(MRPCError):
+    pass
+
 class NoReturn(MRPCError):
     pass
 

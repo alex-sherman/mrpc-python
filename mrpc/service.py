@@ -20,10 +20,9 @@ def valid_args(func, instance, *args, **kwargs):
         print(e)
         return False
 
-
 def Service(mrpc):
     class service(object):
-        def __init__(self, func):
+        def __init__(self, func, service_name = None):
             self.aliases = []
             @wraps(func)
             def wrapped(value, instance = None):
@@ -41,10 +40,13 @@ def Service(mrpc):
                 else:
                     return func(*args, **kwargs)
             self.wrapped = wrapped
-            mrpc.services[func.__name__] = self
+            mrpc.services[service_name if service_name else func.__name__] = self
         def __call__(self, value):
             return self.wrapped(value)
         def respond(self, name):
-            self.aliases.append(name)
+            if name not in self.aliases:
+                self.aliases.append(name)
             return self
+        def close(self):
+            pass
     return service
