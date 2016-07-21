@@ -4,15 +4,15 @@ import socket
 from message import Message
 import uuid
 import struct
+from proxy import Proxy
 import mrpc
 
 class Transport(object):
     def __init__(self):
-        self.routing = mrpc.Proxy("*/Routing", transport = self)
-        self.node = None
+        self.mrpc = None
 
-    def begin(self, node):
-        self.node = node
+    def begin(self, mrpc):
+        self.mrpc = mrpc
 
     def send(self, message):
         raise NotImplementedError()
@@ -69,7 +69,7 @@ class TransportThread(Thread):
         del self
 
 class SocketTransport(PollingTransport):
-    def __init__(self, local_port = 50123, host = '', remote_port = 50123, timeout = 1, reuseaddr = True, broadcast = "255.255.255.255"):
+    def __init__(self, local_port = 50123, host = '0.0.0.0', remote_port = 50123, timeout = 1, reuseaddr = True, broadcast = "255.255.255.255"):
         self.port = local_port
         self.host = host
         self.remote_port = remote_port
@@ -101,20 +101,7 @@ class SocketTransport(PollingTransport):
             except Exception as e:
                 print("An error occured: {0}".format(e))
 
-    def send(self, message, guid_dest = None):
-        destination = message.dst
-        if guid_dest:
-            destination = uuid.UUID(guid_dest)
-        socket_dst = None
-        destination = mrpc.Path(destination)
-        if destination.is_broadcast:
-            socket_dst = (self.broadcast, self.remote_port)
-        elif destination.guid and destination.guid in self.known_guids:
-            socket_dst = self.known_guids[destination.guid]
-
-        if socket_dst:
-            self.socket.sendto(message.bytes, socket_dst)
-        else:
-            self.routing.who_has(destination.service).when(lambda guid: self.send(message, guid))
+    def send(self, message, socket_dst = None):
+        self.socket.sendto(message.bytes, (self.broadcast, self.remote_port))
 
 

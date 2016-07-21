@@ -19,7 +19,7 @@ class Message(object):
 
     @property
     def is_request(self):
-        return self.is_valid and "procedure" in self.obj
+        return self.is_valid and not self.is_response
     
     @property
     def is_response(self):

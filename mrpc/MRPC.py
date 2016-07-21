@@ -3,25 +3,39 @@ import uuid
 import time
 from collections import defaultdict
 from message import Message
-from mrpc.path import Path
-import mrpc.routing
-from proxy import RPCResult
+from path import Path
+from proxy import RPCResult, Proxy
 import inspect
 from exception import NoReturn
+from service import Service
 
-class Node(object):
+class MRPC(object):
     
     def __init__(self, guid = None):
-        self.transports = []
+        self.service = Service(self)
         self.services = {}
+        @self.service
+        def who_has(path):
+            try:
+                path = Path(path)
+                if any([path.is_match(service_name, service, self) for service_name, service in self.services.items()]):
+                    return self.guid.hex
+            except Exception as e:
+                print("Lookup error: ", str(e))
+            raise NoReturn()
+        who_has.respond("Routing")
+        self.transports = []
         if guid is None:
             guid = uuid.uuid4()
         self.guid = guid
+        self.aliases = [guid.hex]
         self._request_id = 0
         self.callbacks = {}
         self.path_prefix = "/"
-        self.register_service(mrpc.routing.Routing())
         self.events = []
+
+    def Proxy(self, path, transport = None):
+        return Proxy(path, self, transport)
 
     def run(self):
         try:
@@ -44,7 +58,7 @@ class Node(object):
         self.transports.append(transport)
         transport.begin(self)
 
-    def register_service(self, service, path = None):
+    def create_service(self, service, path = None):
         if(path == None):
             path = self.path_prefix + str(type(service).__name__)
         self.services[path] = service
@@ -53,28 +67,20 @@ class Node(object):
         self.events.append((time.time() + delay, callback))
         self.events = sorted(self.events)
 
-    def rpc(self, path, procedure, value = None, transport = None):
+    def rpc(self, path, value = None, transport = None):
         msg = Message(
             id = self.request_id(),
             src = self.guid.hex,
             dst = path,
-            procedure = procedure,
             value = value)
         output = RPCResult()
-        self.send(msg, success = output.success, transport = transport)
-        return output
-
-    def send(self, message, success = None, failure = None, transport = None):
-        self.callbacks[message.id] = (success, failure)
+        self.callbacks[msg.id] = (output.success, None)
         if transport == None:
             for transport in self.transports:
-                transport.send(message)
+                transport.send(msg)
         else:
-            transport.send(message)
-
-    def get_services(self, path):
-        return [service for service_path, service in self.services.items()
-                    if path.is_match(Path(service_path))]
+            transport.send(msg)
+        return output
 
     def on_recv(self, message):
         dst = Path(message.dst)
@@ -89,15 +95,14 @@ class Node(object):
                 except Exception as e:
                     print("Error:", e)
         elif message.is_request:
-            for service in self.get_services(dst):
-                method = service.get_method(message.procedure)
-                if method:
+            for service_name, service in self.services.items():
+                if dst.is_match(service_name, service, self):
                     response = Message(
                         id = message.id,
                         src = self.guid.hex,
                         dst = message.src)
                     try:
-                        response.result = method(message.value)
+                        response.result = service(message.value)
                     except NoReturn: return
                     except Exception as e:
                         print("Error:", e)
