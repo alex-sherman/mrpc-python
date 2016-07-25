@@ -7,7 +7,13 @@ class CallThrough(object):
         self.transport = transport
         self.path = path + "." + procedure_name
         self.mrpc = mrpc
-    def __call__(self, value = None):
+    def __call__(self, *args, **kwargs):
+        value = None
+        if args and kwargs: raise ValueError("Cannot call with both args and kwargs")
+        if kwargs:
+            value = kwargs
+        elif args:
+            value = args
         return self.mrpc.rpc(self.path, value, self.transport)
 
 class RPCResult(object):

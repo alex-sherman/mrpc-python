@@ -10,5 +10,5 @@ def temperature(temp):
     print("Temperature:", temp)
 
 if __name__ == "__main__":
-    MRPC.use_transport(SocketTransport(host = "192.168.1.4"))
+    MRPC.use_transport(SocketTransport())
     MRPC.run()
