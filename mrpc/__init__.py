@@ -8,6 +8,7 @@ import path
 
 MRPC = MRPC.MRPC
 Path = path.Path
+NoReturn = exception.NoReturn
 
 __author__ = "Alex Sherman <asherman1024@gmail.com>"
 __copyright__ = "Copyright 2014"

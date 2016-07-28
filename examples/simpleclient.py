@@ -5,6 +5,8 @@ from mrpc.transport import SocketTransport
 
 MRPC = mrpc.MRPC()
 MRPC.use_transport(SocketTransport(host = "10.42.0.39"))
-server = MRPC.Proxy("/Faff")
-print(server.faff("temperature", {"name": "faff", "aliases": ["Office"]}).get())
+temperature = MRPC.Proxy("*.temperature")
+ts = [temperature("herp") for _ in range(4)]
+print(ts)
+print([t.get(throw = False) for t in ts])
 

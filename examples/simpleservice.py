@@ -5,9 +5,16 @@ from mrpc.transport import SocketTransport
 
 MRPC = mrpc.MRPC()
 
+error = 0
+
 @MRPC.service
 def temperature(temp):
-    print("Temperature:", temp)
+    global error
+    error += 1
+    if error % 2:
+        raise mrpc.NoReturn
+    print("Temperature:", error)
+    return error
 
 if __name__ == "__main__":
     MRPC.use_transport(SocketTransport())
