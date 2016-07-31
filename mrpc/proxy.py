@@ -14,7 +14,7 @@ class Proxy(object):
         if kwargs:
             value = kwargs
         elif args:
-            value = args
+            value = args if len(args) > 1 else args[0]
         return self.mrpc.rpc(self.path, value, **self.kwargs)
 
 class RPCRequest(object):
