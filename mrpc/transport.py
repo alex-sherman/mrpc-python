@@ -7,42 +7,12 @@ import struct
 from proxy import Proxy
 import mrpc
 
-class Transport(object):
-    def __init__(self):
-        self.mrpc = None
-
-    def begin(self, mrpc):
-        self.mrpc = mrpc
-
-    def send(self, message):
-        raise NotImplementedError()
-
-    def close(self):
-        pass
-
-class PollingTransport(Transport):
-    def __init__(self):
-        Transport.__init__(self)
-        self.closing = Event()
-
-    def recv(self):
-        raise NotImplementedError()
-
-    def begin(self, node):
-        Transport.begin(self, node)
-        self.thread = TransportThread(self.recv, self.closing, node, log = print)
-        self.thread.start()
-
-    def close(self):
-        self.closing.set()
-
 class TransportThread(Thread):
-    def __init__(self, recv, closing, node, log = None):
+    def __init__(self, recv, closing, node):
         Thread.__init__(self)
         self.daemon = True
         self.recv = recv
         self.closing = closing
-        self._log = log if log is not None else lambda msg: None
         self.node = node
 
     def run(self):
@@ -68,24 +38,21 @@ class TransportThread(Thread):
         self.close()
         del self
 
-class SocketTransport(PollingTransport):
-    def __init__(self, local_port = 50123, host = '0.0.0.0', remote_port = 50123, timeout = 1, reuseaddr = True, broadcast = "255.255.255.255"):
-        self.port = local_port
-        self.host = host
-        self.remote_port = remote_port
-        self.reuseaddr = reuseaddr
-        self.timeout = timeout
+class SocketTransport(object):
+    def __init__(self, node, local_port = 50123, host = '0.0.0.0', remote_port = 50123,
+                    timeout = 1, reuseaddr = True, broadcast = "255.255.255.255"):
+        self.closing = Event()
         socket.setdefaulttimeout(timeout)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        if self.reuseaddr:
+        if reuseaddr:
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind((self.host, self.port))
-        self.port = self.socket.getsockname()[1]
+        self.socket.bind((host, local_port)) 
+        self.thread = TransportThread(self.recv, self.closing, node)
+        self.thread.start()
+        self.remote_port = remote_port
         self.known_guids = {}
         self.broadcast = broadcast
-        PollingTransport.__init__(self)
-        print("Service listening on port {0}".format(self.port))
 
     def recv(self):
         while True:
@@ -108,4 +75,5 @@ class SocketTransport(PollingTransport):
             socket_dst = self.known_guids[dst.guid]
         self.socket.sendto(message.bytes, socket_dst)
 
-
+    def close(self):
+        self.closing.set()

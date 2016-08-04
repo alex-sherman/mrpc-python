@@ -18,8 +18,8 @@ class Proxy(object):
         return self.mrpc.rpc(self.path, value, **self.kwargs)
 
 class RPCRequest(object):
-    def __init__(self, message, timeout, resend_delay, transports):
-        self.transports = transports
+    def __init__(self, message, timeout, resend_delay, transport):
+        self.transport = transport
         self.creation = time.time()
         self.timeout = timeout
         self.resend_delay = resend_delay
@@ -43,8 +43,7 @@ class RPCRequest(object):
 
     def send(self):
         self.last_resent = time.time()
-        for tranport in self.transports:
-            tranport.send(self.message)
+        self.transport.send(self.message)
 
     def success(self, result):
         self.condition.acquire()

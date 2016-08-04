@@ -7,8 +7,9 @@ from path import Path
 from proxy import RPCRequest, Proxy
 import inspect
 from exception import NoReturn, InvalidPath
-from service import Service
+from service import Service, create_service_type
 from threading import Thread
+from transport import SocketTransport
 
 class PathCacheEntry(object):
     TIMEOUT = 1
@@ -31,10 +32,10 @@ class PathCacheEntry(object):
         return set(self.entries.keys())
 
 class MRPC(object):
-    def __init__(self, guid = None):
+    def __init__(self, guid = None, **kwargs):
         self.service = Service(self)
         self.services = {}
-        self.transports = []
+        self.transport = SocketTransport(self, **kwargs)
         if guid is None:
             guid = uuid.uuid4()
         self.guid = guid
@@ -47,6 +48,7 @@ class MRPC(object):
         self.thread = Thread(target = self.run)
         self.thread.daemon = True
         self.thread.start()
+        self.ServiceType = create_service_type(self)
 
     def Proxy(self, path, **kwargs):
         return Proxy(path, self, **kwargs)
@@ -73,28 +75,24 @@ class MRPC(object):
         self._request_id += 1
         return self._request_id
 
-    def use_transport(self, transport):
-        self.transports.append(transport)
-        transport.begin(self)
-
     def event(self, delay, callback):
         self.events.append((time.time() + delay, callback))
         self.events = sorted(self.events)
 
-    def rpc(self, path, value = None, timeout = 3, resend_delay = 0.5, transport = None):
+    def rpc(self, path, value = None, timeout = 3, resend_delay = 0.5):
         msg = Message(
             id = self.request_id(),
             src = self.guid.hex,
             dst = path,
             value = value)
-        output = RPCRequest(msg, timeout, resend_delay, [transport] if transport is not None else self.transports)
+        output = RPCRequest(msg, timeout, resend_delay, self.transport)
         output.send()
         self.path_cache[path].on_send()
         self.requests[msg.id] = output
         return output
 
     def close(self):
-        [transport.close() for transport in self.transports]
+        self.transport.close()
         for service in self.services.values():
             try:
                 service.close()
@@ -131,7 +129,6 @@ class MRPC(object):
                             response = None
 
                         if response:
-                            for transport in self.transports:
-                                transport.send(response)
+                            self.transport.send(response)
         except InvalidPath:
             pass
