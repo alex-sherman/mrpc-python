@@ -79,7 +79,7 @@ class MRPC(object):
         self.events.append((time.time() + delay, callback))
         self.events = sorted(self.events)
 
-    def rpc(self, path, value = None, timeout = 3, resend_delay = 0.5):
+    def rpc(self, path, value = None, sync = True, timeout = 3, resend_delay = 0.5):
         msg = Message(
             id = self.request_id(),
             src = self.guid.hex,
@@ -89,6 +89,8 @@ class MRPC(object):
         output.send()
         self.path_cache[path].on_send()
         self.requests[msg.id] = output
+        if sync:
+            return output.get()
         return output
 
     def close(self):

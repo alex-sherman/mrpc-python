@@ -8,6 +8,14 @@ class Proxy(object):
         self.kwargs = kwargs
         self.path = path
         self.mrpc = mrpc
+    def __getattr__(self, name):
+        return ServiceProxy(self.path + "." + name, self.mrpc, **self.kwargs)
+
+class ServiceProxy(object):
+    def __init__(self, path, mrpc, **kwargs):
+        self.kwargs = kwargs
+        self.path = path
+        self.mrpc = mrpc
     def __call__(self, *args, **kwargs):
         value = None
         if args and kwargs: raise ValueError("Cannot call with both args and kwargs")
@@ -16,6 +24,7 @@ class Proxy(object):
         elif args:
             value = args if len(args) > 1 else args[0]
         return self.mrpc.rpc(self.path, value, **self.kwargs)
+
 
 class RPCRequest(object):
     def __init__(self, message, timeout, resend_delay, transport):
