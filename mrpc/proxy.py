@@ -2,6 +2,7 @@ import message
 import threading
 import mrpc
 import time
+from exception import RPCTimeout
 
 class Proxy(object):
     def __init__(self, path, mrpc, **kwargs):
@@ -78,7 +79,7 @@ class RPCRequest(object):
             while not self.completed:
                 t = time.time()
                 if t >= self.deadline:
-                    raise Exception("Timeout")
+                    raise RPCTimeout
                 self.condition.wait(self.deadline - t)
         finally:
             self.condition.release()
