@@ -16,10 +16,9 @@ class Path(object):
                 self.is_wildcard = self.name == "*"
             else:
                 self.name = self.path
+            # Ignore leading slashes for backwards compatibility
             if self.name[0] == '/':
                 self.name = self.name[1:]
-            elif (not self.name == "*") and (not self.guid):
-                raise InvalidPath("Invalid path: " + path)
         else:
             raise InvalidPath("Invalid path: " + path)
 
