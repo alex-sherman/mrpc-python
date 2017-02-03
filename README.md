@@ -1,7 +1,8 @@
 Python-MRPC
 ===========
 
-A Python remote procedure call framework that will work in mesh networks, and is meant for IoT applications.
+A Python implementation of the remote procedure call framework MRPC which works in mesh networks, and is meant for IoT applications.
+MRPC allows easy communication between a wide variety of devices, more information about MRPC and what languages and platforms it supports [can be found here](https://github.com/alex-sherman/MRPC#mrpc).
 
 Install using pip:
 
@@ -11,33 +12,31 @@ pip install mrpc
 
 # Example Usage
 
-Python MRPC allows programmers to create powerful client/server programs with very little code.
-Here's an example of a server and client:
-
-## Server
+The Python implementation of MRPC has several nice extensions because of the flexibility of Python.
+Below are some examples of extra features available in the Python version of MRPC.
 
 ```python
 import mrpc
 
-MRPC = mrpc.MRPC()
+# Specify broadcast address, otherwise defaults to 255.255.255.255
+MRPC = mrpc.MRPC(broadcast = "192.168.1.255")
 
-@MRPC.service
-def light(arg):
-    if type(arg) is bool:
-        return arg
-    return False
+# RPC style
+MRPC.rpc("LivingRoom.relay").get()  # Must call blocking .get() to retrieve result
+MRPC.srpc("LivingRoom.relay")       # Synchronous rpc, alias to call .get()
 
-if __name__ == "__main__":
-    MRPC.run()
-```
+# Async RPC style
+MRPC.rpc("LivingRoom.relay").when(lambda value: print(value))
 
-## Client
+# Proxy style
+LivingRoom = MRPC.Proxy("LivingRoom")
+LivingRoom.relay().get()
 
-```python
-import mrpc
+# Async proxy style
+LivingRoom.relay().when(lambda value: print(value))
 
-MRPC = mrpc.MRPC(host = "127.0.0.1")
-
-light = MRPC.Proxy("*.light")
-print(light(True).get())
+# Argument conversions
+LED = MRPC.Proxy("LED")
+LED.color(255, 255, 255)                # Same as LED.color([255, 255, 255])
+LED.color(r = 255, g = 255, b = 255)    # Same as LED.color({r: 255, g: 255, b: 255})
 ```
