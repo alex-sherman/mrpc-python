@@ -1,11 +1,11 @@
 from __future__ import print_function
 from threading import Thread, Event
 import socket
-from message import Message
+from .message import Message
 import uuid
 import struct
-from proxy import Proxy
-import mrpc
+from .proxy import Proxy
+from .path import Path
 
 class TransportThread(Thread):
     def __init__(self, recv, closing, node):
@@ -70,7 +70,7 @@ class SocketTransport(object):
 
     def send(self, message):
         socket_dst = (self.broadcast, self.remote_port)
-        dst = mrpc.Path(message.dst)
+        dst = Path(message.dst)
         if dst.guid and dst.guid in self.known_guids:
             socket_dst = self.known_guids[dst.guid]
         self.socket.sendto(message.bytes, socket_dst)

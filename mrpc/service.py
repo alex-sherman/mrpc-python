@@ -2,9 +2,9 @@ import threading
 import socket
 import logging
 import time
-import exception
+from . import exception
 import json
-import message
+from . import message
 import inspect
 import types
 from functools import wraps

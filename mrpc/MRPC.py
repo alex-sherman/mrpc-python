@@ -2,14 +2,14 @@ from __future__ import print_function
 import uuid
 import time
 from collections import defaultdict
-from message import Message
-from path import Path
-from proxy import RPCRequest, Proxy
+from .message import Message
+from .path import Path
+from .proxy import RPCRequest, Proxy
 import inspect
-from exception import NoReturn, InvalidPath
-from service import Service, create_service_type
+from .exception import NoReturn, InvalidPath
+from .service import Service, create_service_type
 from threading import Thread
-from transport import SocketTransport
+from .transport import SocketTransport
 
 class PathCacheEntry(object):
     TIMEOUT = 1
@@ -62,7 +62,7 @@ class MRPC(object):
                         event[1]()
                     except Exception as e:
                         print(e)
-                for _id, request in self.requests.items():
+                for _id, request in list(self.requests.items()):
                     if request.stale:
                         del self.requests[_id]
                     else:

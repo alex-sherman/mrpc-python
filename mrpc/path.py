@@ -1,5 +1,5 @@
 import uuid
-from exception import InvalidPath
+from .exception import InvalidPath
 
 class Path(object):
     def __init__(self, path):

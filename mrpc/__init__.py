@@ -1,10 +1,10 @@
 __all__ = ["service", "exception"]
 
-import MRPC
-import service
-import proxy
-import exception
-import path
+from . import MRPC
+from . import service
+from . import proxy
+from . import exception
+from . import path
 
 MRPC = MRPC.MRPC
 Path = path.Path

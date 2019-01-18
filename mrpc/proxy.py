@@ -1,8 +1,7 @@
-import message
+from . import message
 import threading
-import mrpc
 import time
-from exception import RPCTimeout
+from .exception import RPCTimeout
 
 class Proxy(object):
     def __init__(self, path, mrpc, **kwargs):

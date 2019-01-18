@@ -1,6 +1,6 @@
 import struct
 import json
-import exception
+from . import exception
 import socket
 
 class Message(object):
@@ -27,8 +27,7 @@ class Message(object):
     
     @property
     def bytes(self):
-        return json.dumps(self.obj)
-
+        return json.dumps(self.obj).encode("ascii")
     def copy(self):
         copy = Message()
         copy.obj = json.loads(self.bytes)
