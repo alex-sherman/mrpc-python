@@ -37,8 +37,8 @@ class Message(object):
         return json.dumps(self.obj)
 
     def __getattr__(self, name):
-        if not name in self.obj:
-            AttributeError
+        if name not in self.obj:
+            raise AttributeError
         return self.obj[name]
 
     def __setattr__(self, name, value):

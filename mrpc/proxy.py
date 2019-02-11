@@ -38,7 +38,9 @@ class RPCRequest(object):
         self.condition = threading.Condition()
         self.completed = False
         self.result = None
+        self.error = None
         self.actions = []
+        self.error_actions = []
 
     @property
     def deadline(self):
@@ -54,12 +56,21 @@ class RPCRequest(object):
         self.last_resent = time.time()
         self.transport.send(self.message)
 
-    def success(self, result):
+    def set_result(self, result):
         self.condition.acquire()
         self.result = result
         self.completed = True
         for action in self.actions:
             action(self.result)
+        self.condition.notify()
+        self.condition.release()
+
+    def set_error(self, error):
+        self.condition.acquire()
+        self.error = error
+        self.completed = True
+        for action in self.error_actions:
+            action(self.error)
         self.condition.notify()
         self.condition.release()
 
@@ -86,7 +97,7 @@ class RPCRequest(object):
     def get(self, throw = True):
         try:
             self.wait()
-            return self.result
+            return self.result if not self.error else self.error
         except Exception as e:
             if throw:
                 raise

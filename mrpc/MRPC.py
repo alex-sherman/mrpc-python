@@ -6,10 +6,11 @@ from .message import Message
 from .path import Path
 from .proxy import RPCRequest, Proxy
 import inspect
-from .exception import NoReturn, InvalidPath
+from . import exception
 from .service import Service, create_service_type
 from threading import Thread
 from .transport import SocketTransport
+import traceback
 
 class PathCacheEntry(object):
     TIMEOUT = 1
@@ -112,11 +113,11 @@ class MRPC(object):
                     request.responded.add(message.src)
                     try:
                         if hasattr(message, "result"):
-                            request.success(message.result)
+                            request.set_result(message.result)
                         elif hasattr(message, "error"):
-                            request.failure(exception.JRPCError.from_error(response.error))
+                            request.set_error(message.error)
                     except Exception as e:
-                        print("Error:", e)
+                        traceback.print_exc()
             elif message.is_request:
                 for service_name, service in self.services.items():
                     if dst.is_match(service_name, service, self):
@@ -126,12 +127,12 @@ class MRPC(object):
                             dst = message.src)
                         try:
                             response.result = service(message.value)
-                        except NoReturn: return
+                        except exception.NoReturn: return
                         except Exception as e:
                             print("Error:", e)
                             response = None
 
                         if response:
                             self.transport.send(response)
-        except InvalidPath:
+        except exception.InvalidPath:
             pass
