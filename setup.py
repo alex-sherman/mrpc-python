@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
   name = "mrpc",
-  version = "0.1",
+  version = "0.2",
   description = "A Python RPC framework for mesh networks and multiple protocols",
   packages = ["mrpc"],
   author='Alex Sherman',
