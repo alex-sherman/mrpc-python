@@ -19,7 +19,7 @@ class PathCacheEntry(object):
 
     def on_send(self):
         send_time = time.time()
-        for uuid in self.entries.keys():
+        for uuid in list(self.entries.keys()):
             if self.entries[uuid] == 0:
                 self.entries[uuid] = time.time()
             elif (send_time - self.entries[uuid]) > PathCacheEntry.TIMEOUT:
